@@ -1,0 +1,2 @@
+import litmus
+litmus.main()

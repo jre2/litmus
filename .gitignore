@@ -7,5 +7,5 @@
 Cargo.lock
 
 # Python
-.py[cod]
-.so
+*.py[cod]
+*.so
