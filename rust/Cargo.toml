@@ -1,0 +1,10 @@
+[package]
+name = "litmus"
+version = "0.0.1"
+authors = ["Joseph Re <overture2112@gmail.com>"]
+keywords = ["litmus","benchmark"]
+description = "prototype engine for rust"
+
+[dependencies]
+time = "*"
+rand = "*"
