@@ -9,3 +9,7 @@ Cargo.lock
 # Python
 *.py[cod]
 *.so
+
+# C++
+*.o
+litmus
