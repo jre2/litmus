@@ -102,7 +102,7 @@ impl State {
             .filter( |u| u.team == Team::Team1 && u.is_alive )
             .map( |u| u.hp )
             .sum::<i32>();
-        println!("Team 0: {} Team 1: {}", team0_hp, team1_hp );
+        println!("Turn {}. Team 0: {} Team 1: {}", self.turn, team0_hp, team1_hp );
     }
     fn update( &mut self ) {
         let mut any_team0_alive = false;
@@ -157,8 +157,10 @@ impl State {
         let u_idx = self.get_next_ready_unit_idx();
         let u = self.units[ u_idx ].clone();
 
-        self.turn += 1;
-        self.do_turn_unit( & u, u_idx );
+        if self.stage == GameStage::InProgress {
+            self.turn += 1;
+            self.do_turn_unit( & u, u_idx );
+        }
     }
     fn do_turn_unit( &mut self, me : &Unit, me_idx : usize ) {
         self.units[ me_idx ].ct -= 100;
@@ -193,8 +195,10 @@ where F : Fn(&mut Unit) -> bool
 }
 
 fn rnd_attack( me : &Unit, st : &mut State ) {
-    let e = choice( &mut st.units, |u| u.is_alive && u.team != me.team ).unwrap();
-    do_attack( me, e );
+    match choice( &mut st.units, |u| u.is_alive && u.team != me.team ) {
+        Some(e) => do_attack( me, e ),
+        None => (), // if no valid target, take no action
+    }
 }
 fn rnd_heal( me : &Unit, st : &mut State ) {
     let mut fallback = false;
@@ -221,7 +225,8 @@ fn do_heal( me : &Unit, a : &mut Unit ) {
 
 impl std::fmt::Display for Unit {
     fn fmt( &self, f: &mut std::fmt::Formatter ) -> std::fmt::Result {
-        write!( f, "<{}% {} ({})>", self.hp, self.ct, self.id )
+        if !self.is_alive { write!( f, "<DEAD>" ) }
+        else { write!( f, "<{}% {} ({})>", self.hp, self.ct, self.id ) }
     }
 }
 
@@ -257,7 +262,7 @@ fn main() {
     let mut st = State::mk_test();
 
     let t0 = time::precise_time_ns();
-    for _ in 0..3000000 {
+    for _ in 0..9000000 {
         if st.stage != GameStage::InProgress { break; }
 
         st.do_turn();
