@@ -1,5 +1,11 @@
 #![allow(dead_code)]
 #![feature(iter_arith)]
+#![feature(test)]
+#![feature(libc)]
+
+extern crate libc;
+extern crate rand;
+extern crate time;
 
 #[derive(Debug)]
 #[derive(PartialEq)]
@@ -10,21 +16,18 @@ enum GameStage { InProgress, Team0Won, Team1Won, }
 #[derive(Clone)]
 enum Team { Team0, Team1 }
 
-use std::rc::Rc;
-use std::cell::RefCell;
-
 #[derive(Debug)]
-struct State<'a> {
+struct State {
     turn : u32,
     stage : GameStage,
 
     next_unit_id : u32,
-    units : Vec< Rc<RefCell<  Unit<'a> >> >,
+    units : Vec< Unit >,
 }
 
 #[derive(Debug)]
 #[derive(Clone)]
-struct Unit<'a> {
+struct Unit {
     id : u32,
 
     team : Team,
@@ -37,26 +40,24 @@ struct Unit<'a> {
     atk : i32,
     heal : i32,
     is_alive : bool,
-
-    phantom : std::marker::PhantomData<&'a i32>,
 }
 
-impl<'a> State<'a> {
-    fn new() -> State<'a> {
+impl State {
+    fn new() -> State {
         State {
             turn : 0,
             stage : GameStage::InProgress,
             next_unit_id : 0,
-            units : Rc::new( RefCell::new( Vec::new() )),
+            units : Vec::new(),
         }
     }
-    fn add_unit( &mut self, team : Team, row : u32 ) -> &mut State<'a> {
+    fn add_unit( &mut self, team : Team, row : u32 ) -> &mut State {
         let u = Unit::new( self.next_unit_id, team, row );
         self.units.push( u );
         self.next_unit_id += 1;
         self
     }
-    fn mk_test() -> State<'a> {
+    fn mk_test() -> State {
         let mut st = State::new();
         for _ in 0..1 {
             st.add_unit( Team::Team0, 4 );
@@ -88,7 +89,7 @@ impl<'a> State<'a> {
 
         for row in 1..5+1 {
             let x = self.units.iter()
-                .filter( |u| u.row==row && u.team == Team::Team0 )
+                .filter( |u| u.row==row && u.team == Team::Team1 )
                 .map( |u| u.to_string() ).collect::<Vec<_>>().join(" ");
             println!("{}", x);
         }
@@ -118,37 +119,6 @@ impl<'a> State<'a> {
         if !any_team1_alive { self.stage = GameStage::Team0Won; }
     }
     /*
-    fn do_turn_unit( &mut self, uidx : usize ) {
-        let ref u = self.units[ uidx ];
-    }
-    fn do_turn( &mut self ) {
-        let x = & self.units[0];
-
-        println!(" obj {}", x );
-    }
-    fn __do_turn( &mut self ) {
-        let mut idx = None;
-
-        while self.stage == GameStage::InProgress {
-            for i in 0..self.units.len() {
-                let ref u = self.units[i];
-                if !u.is_alive { continue; }
-
-                if let None = idx { idx = Some(i); }
-
-                let ref best = self.units[ idx.unwrap() ];
-                if u.ct > best.ct { idx = Some(i); }
-            }
-
-            if self.units[ idx.unwrap() ].ct >= 100 { break; }
-            self.update();
-            println!("updated state");
-        }
-
-        if self.stage == GameStage::InProgress {
-            println!("do_turn with unit idx {} and obj {}", idx.unwrap(), self.units[ idx.unwrap() ] );
-        }
-    }
     fn _do_turn( &mut self ) {
         let mut id = None;
         while self.stage == GameStage::InProgress {
@@ -166,46 +136,97 @@ impl<'a> State<'a> {
             let u = self.units.iter_mut().filter( |u| u.id == id.unwrap() ).nth(0).unwrap();
             println!("do_turn with unit {}", u );
         }
-    }
-    fn ___do_turn( &mut self ) {
-        while self.stage == GameStage::InProgress {
-            let x = self.units.iter_mut()
-                .filter( |u| u.ct >= 100 && u.is_alive )
-                .max_by_key( |u| u.ct );
-            match x {
-                None => {
-                    println!("pumping mid-turn events until some unit is ready");
-                    self.update();
-                }
-                Some(u) => {
-                    println!("unit {} now takes turn", u);
-                    self.turn += 1;
-                    //u.do_turn( self );
-                    break;
-                }
-            }
-        }
     }*/
-    fn do_turn_unit( &mut self, u : &Unit ) {
-        self.units[2].hp -= u.atk;
+    fn get_next_ready_unit_idx( &mut self ) -> usize {
+        let mut idx = None;
+        while self.stage == GameStage::InProgress {
+            for i in 0..self.units.len() {
+                let ref u = self.units[i];
+
+                if !u.is_alive { continue; }
+                if let None = idx { idx = Some(i); }
+                if u.ct > self.units[ idx.unwrap() ].ct { idx = Some(i); }
+            }
+
+            if self.units[ idx.unwrap() ].ct >= 100 { break; }
+            self.update();
+        }
+        idx.unwrap()
     }
     fn do_turn( &mut self ) {
-        while self.units[0].ct < 100 { self.update(); }
-        let u = self.units[0].clone();
+        let u_idx = self.get_next_ready_unit_idx();
+        let u = self.units[ u_idx ].clone();
 
-        //self.do_turn_unit( &u );
-        self.units[0].do_turn( self );
+        self.turn += 1;
+        self.do_turn_unit( & u, u_idx );
+    }
+    fn do_turn_unit( &mut self, me : &Unit, me_idx : usize ) {
+        self.units[ me_idx ].ct -= 100;
+
+        //let mut rng = rand::thread_rng();
+        //let rnd_action : u32 = rng.gen_range(0,1+1);
+        //let rnd_action = rand::random::< u32 >() % 2 + 1;
+        //let rnd_action = rng.gen::< u32 >() % 2+1;
+        let rnd_action = unsafe { libc::rand() as u32 % 2 +1 };
+
+        match rnd_action {
+            1 => rnd_attack( me, self ),
+            2 => rnd_heal( me, self ),
+            _ => panic!("impossible"),
+        };
     }
 }
 
-impl<'a> std::fmt::Display for Unit<'a> {
+fn choice<F>( xs : &mut Vec<Unit>, pred : F ) -> Option< &mut Unit >
+where F : Fn(&mut Unit) -> bool
+//fn choice( xs : &mut Vec<Unit>, pred : Fn(&mut Unit) -> bool ) -> Option< &mut Unit >
+{
+    let mut seen = 0;
+    let mut y = None;
+
+    for x in xs {
+        if !pred(x) { continue; }
+        seen += 1;
+        unsafe { if ( libc::rand() as i32 % seen ) == 0 { y = Some(x); } }
+    }
+    y
+}
+
+fn rnd_attack( me : &Unit, st : &mut State ) {
+    let e = choice( &mut st.units, |u| u.is_alive && u.team != me.team ).unwrap();
+    do_attack( me, e );
+}
+fn rnd_heal( me : &Unit, st : &mut State ) {
+    let mut fallback = false;
+    {
+        let ma = choice( &mut st.units, |u| u.is_alive && u.team == me.team && u.hp < 100 );
+        match ma {
+            Some(a) => do_heal( me, a ),
+            None => fallback = true, //was `rnd_attack( me, st ),`
+        }
+    }
+    if fallback { rnd_attack( me, st ); }
+}
+
+fn do_attack( me : &Unit, e : &mut Unit ) {
+    let dist = me.row + e.row;
+    let dist_f = 2.0 / dist as f32;
+    let dmg = (me.atk as f32 * dist_f) as i32;
+    e.hp -= dmg;
+}
+fn do_heal( me : &Unit, a : &mut Unit ) {
+    let hp = std::cmp::min( me.heal, 100-a.hp );
+    a.hp += hp;
+}
+
+impl std::fmt::Display for Unit {
     fn fmt( &self, f: &mut std::fmt::Formatter ) -> std::fmt::Result {
         write!( f, "<{}% {} ({})>", self.hp, self.ct, self.id )
     }
 }
 
-impl<'a> Unit<'a> {
-    fn new( id : u32, team : Team, row : u32 ) -> Unit<'a> {
+impl Unit {
+    fn new( id : u32, team : Team, row : u32 ) -> Unit {
         Unit {
             id : id, team : team,
             row : row,
@@ -214,7 +235,6 @@ impl<'a> Unit<'a> {
             hp : 100,
             atk : 2, heal : 1,
             is_alive : true,
-            phantom : std::marker::PhantomData,
         }
     }
     fn update( &mut self ) {
@@ -224,18 +244,28 @@ impl<'a> Unit<'a> {
             self.ct += self.spd
         }
     }
-    fn do_turn( &mut self, st : &mut State ) {
-        println!( "Unit::do_turn {}", self );
-    }
+}
+
+extern crate test;
+#[bench]
+fn bench_do_turn( b: &mut test::Bencher ) {
+    let mut st = State::mk_test();
+    b.iter(|| st.do_turn() );
 }
 
 fn main() {
     let mut st = State::mk_test();
-    for _ in 0..2 {
+
+    let t0 = time::precise_time_ns();
+    for _ in 0..3000000 {
         if st.stage != GameStage::InProgress { break; }
 
         st.do_turn();
-        st.render();
+        //st.render();
     }
-    println!("Stage {:?} on turn {}. {} sec {} turns/sec", st.stage, st.turn, -1, -1 );
+    let t = time::precise_time_ns();
+    let dt = (t-t0) as f64 / 1e9;
+    let tps = ((st.turn as f64 / dt) / 1000.0) as u32;
+
+    println!("Stage {:?} on turn {}. {} sec {} k turns/sec", st.stage, st.turn, dt, tps );
 }
