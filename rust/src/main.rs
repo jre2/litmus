@@ -140,9 +140,7 @@ impl State {
     fn get_next_ready_unit_idx( &mut self ) -> usize {
         let mut idx = None;
         while self.stage == GameStage::InProgress {
-            for i in 0..self.units.len() {
-                let ref u = self.units[i];
-
+            for (i,u) in self.units.iter().enumerate() {
                 if !u.is_alive { continue; }
                 if let None = idx { idx = Some(i); }
                 if u.ct > self.units[ idx.unwrap() ].ct { idx = Some(i); }
@@ -165,12 +163,7 @@ impl State {
     fn do_turn_unit( &mut self, me : &Unit, me_idx : usize ) {
         self.units[ me_idx ].ct -= 100;
 
-        //let mut rng = rand::thread_rng();
-        //let rnd_action : u32 = rng.gen_range(0,1+1);
-        //let rnd_action = rand::random::< u32 >() % 2 + 1;
-        //let rnd_action = rng.gen::< u32 >() % 2+1;
         let rnd_action = unsafe { libc::rand() as u32 % 2 +1 };
-
         match rnd_action {
             1 => rnd_attack( me, self ),
             2 => rnd_heal( me, self ),
