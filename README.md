@@ -56,17 +56,25 @@ Litmus tests to determine viability of different languages for prescience engine
   * empowered-for-dmg-type (eg. en-holy, en-dark)
 * OnDamaged [potency?]:
   * vulnerable-to-dmg-type (eg. oiled/wet/frozen)
-
-* OnDamaged [linked unit]:
+* OnDamaged/OnHealed/OnStatused [linked unit]:
   * guarded (defender)
-* OnDamaged/OnHealed [linked unit]:
   * life-link (ally/enemy also loses/gains hp)
-* OnStatused [linked unit]:
   * synchronize (ally/enemy also gains status)
 
-
-### Buff Implementation
+### Buff/Effects Implementation
 -----------------------
+**On the unit**
 
-On the unit:
-	StatusBitFlags (32b?) -- quick check for presence of certain status effect
+Unit checks if affected by an effect with simple bit flag check for majority of buffs.
+Only needs to lookup buff if additional data is required (eg. potency or linked unit).
+
+    EffectsBitFlags (64b) -- quick check for presence of certain status effect
+
+**Separate**
+
+Keep an array of all effects so we can update them in vectorized fashion.
+Keep sorted by unit it pertains to for improved cache performance (when effects need to modify unit's bitflags, when unit needs to lookup its buffs, and reduces size as we don't store unit ids).
+Additionally keep lookup of where in the array an unit's effects start and end.
+
+    UnitId2BuffArrayRange :: Map UnitId (StartIdx, EndIdx)
+    EffectsArray -- array of effects, sorted by unit
