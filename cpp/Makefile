@@ -1,6 +1,6 @@
 CC=g++
 #CFLAGS= -g -Wall -std=c++11
-CFLAGS= -g -Wall -std=c++11 -O3 -fstrict-aliasing
+CFLAGS= -g -Wall -std=c++11 -O3 -fstrict-aliasing -march=native -mfpmath=sse -msse3 -fomit-frame-pointer
 #CFLAGS= -g -Wall -std=c++11 -O3
 #CFLAGS= -g -Wall -std=c++11 -O3 -pg
 

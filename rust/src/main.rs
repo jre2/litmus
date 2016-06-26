@@ -161,7 +161,10 @@ impl State {
         }
     }
     fn do_turn_unit( &mut self, me : &Unit, me_idx : usize ) {
-        self.units[ me_idx ].ct -= 100;
+        {
+            let ref mut u = self.units[ me_idx ];
+            u.ct -= 100;
+        }
 
         let rnd_action = unsafe { libc::rand() as u32 % 2 +1 };
         match rnd_action {
